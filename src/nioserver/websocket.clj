@@ -1,3 +1,3 @@
-(ns nio.websocket)
+(ns nioserver.websocket)
 
 ;; websocket code goes here
