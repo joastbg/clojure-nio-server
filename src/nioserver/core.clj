@@ -47,16 +47,28 @@
   (let [executor (java.util.concurrent.Executors/newSingleThreadExecutor)]
        (java.nio.channels.AsynchronousChannelGroup/withThreadPool executor)))
 
-(defn start-server [group]
+(defn start-server [group port]
   (let [assc (java.nio.channels.AsynchronousServerSocketChannel/open group)
-        sa (java.net.InetSocketAddress. 8080)]
+        sa (java.net.InetSocketAddress. port)]
     (let [listener (.bind assc sa)]
           (.accept listener nil (handler listener)))))
 
+(def default-port 8080)
+
+(defn parse-options [args]
+  (letfn [(parse-port [args]
+            (if (re-find #"^\d+$" (first args))
+              (read-string (first args))
+              (do (println "* Port has to be a number, using default port.")
+              default-port)))]
+    {:port (parse-port args)}))
+
 (defn -main [& args]
-  (println "-- Web server ")
+  (println "-- NIO-Server 0.01\n")
   (let [group (channel-group)
         time java.lang.Long/MAX_VALUE
-        units java.util.concurrent.TimeUnit/SECONDS]
-    (start-server group)
+        units java.util.concurrent.TimeUnit/SECONDS
+        options (parse-options args)]
+    (println "* Listening on port:" (:port options))
+    (start-server group (:port options))
     (.awaitTermination group time units)))
