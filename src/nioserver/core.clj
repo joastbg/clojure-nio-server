@@ -48,6 +48,7 @@
       ;(println {:address (.getRemoteAddress sc)})
       (letfn [(observer [str]
                 (let [request (parse-request str)]
+                  (println "** Raw request:" str)
                   (println "* New request:" request)
                   (write-socket-channel sc (http-str-reply (serve-static (:path request))))))]
         (read-socket-channel sc 1024 observer)))))

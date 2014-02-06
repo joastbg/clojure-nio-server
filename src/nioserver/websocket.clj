@@ -8,4 +8,6 @@
 
 (ns nioserver.websocket)
 
+;; reference: http://tools.ietf.org/html/rfc6455
+
 ;; websocket code goes here
