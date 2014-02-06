@@ -10,4 +10,5 @@
 (.put chm "index.html" "<h1>Johans hemsida</h1>lite annat skit....")
 
 (defn serve-static [file]
-  (.get chm file))
+  ; change this
+  (.get chm "index.html"))

@@ -17,7 +17,7 @@
             ;(.close channel)))
         (failed [this e _]
           (.close channel)
-          (println "Failed (read):" e))))))
+          (println "! Failed (read):" e))))))
 
 (defn write-socket-channel [channel string]
   (let [bytes (.getBytes string)
@@ -27,20 +27,21 @@
     (.write channel buf nil
       (reify java.nio.channels.CompletionHandler
         (completed [this cnt _]
-          (println {:event :write :count cnt})
+          ;(println {:event :write :count cnt})
           (.close channel))
         (failed [this e _]
           (.close channel)
-          (println "Failed (write):" e (.getMessage e)))))))
+          (println "! Failed (write):" e (.getMessage e)))))))
 
 (defn handler [listener]
   (reify java.nio.channels.CompletionHandler
     (completed [this sc _]
       (.accept listener nil this)
-      (println {:address (.getRemoteAddress sc)})
+      ;(println {:address (.getRemoteAddress sc)})
       (letfn [(observer [str]
-                (println "Request:" (parse-request str))
-                (write-socket-channel sc (http-str-reply (serve-static "index.html"))))]
+                (let [request (parse-request str)]
+                  (println "* New request:" request)
+                  (write-socket-channel sc (http-str-reply (serve-static (:path request))))))]
         (read-socket-channel sc 1024 observer)))))
 
 (defn channel-group []
