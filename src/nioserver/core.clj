@@ -1,7 +1,8 @@
 (ns nioserver.core
   (:use nioserver.http)
   (:use nioserver.websocket)
-  (:use nioserver.files))
+  (:use nioserver.files)
+  (:use nioserver.request))
 
 (defn read-socket-channel [channel size observer]
   (let [buf (java.nio.ByteBuffer/allocateDirect size)]
@@ -32,18 +33,6 @@
           (.close channel)
           (println "Failed (write):" e (.getMessage e)))))))
 
-(defn parse-method [lines]
-  (let [[method path proto] lines]
-  {:method method :path path :proto proto}))
-
-;; tests
-;(parse-method "GET /favicon.ico HTTP/1.1")
-;(parse-method "GET / HTTP/1.1")
-
-(defn parse-request [req-str]
-  (let [lines (clojure.string/split req-str #"\s")]
-    (parse-method lines)))
-
 (defn handler [listener]
   (reify java.nio.channels.CompletionHandler
     (completed [this sc _]
@@ -66,6 +55,8 @@
 
 (defn -main [& args]
   (println "-- Web server ")
-  (let [group (channel-group)]
+  (let [group (channel-group)
+        time java.lang.Long/MAX_VALUE
+        units java.util.concurrent.TimeUnit/SECONDS]
     (start-server group)
-    (.awaitTermination group java.lang.Long/MAX_VALUE java.util.concurrent.TimeUnit/SECONDS)))
+    (.awaitTermination group time units)))
