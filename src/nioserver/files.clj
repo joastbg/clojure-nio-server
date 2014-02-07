@@ -24,8 +24,7 @@
   (let [sfile (if (= \/ (first file)) (subs file 1) file)]
   (println "wants file:" sfile)
   (if (.containsKey chm sfile) (String. (.get chm sfile))
-      (do (println "file not found...")
-          "neger"))))
+      (file-not-found file))))
 
 (defn read-file-channel [channel size callback]
   (let [buf (java.nio.ByteBuffer/allocateDirect size)]
