@@ -16,7 +16,7 @@
     (.format format (.getTime calendar))))
 
 (defn http-str-reply [content]
-  (let [content-length (.length content)]
+  (let [content-length (count content)]
   (clojure.string/join "\n"
                        ["HTTP/1.1 200 OK"
                         (str "Date: " (get-date-str))

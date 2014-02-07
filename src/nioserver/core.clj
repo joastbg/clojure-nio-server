@@ -27,6 +27,7 @@
           (.close channel)
           (println "! Failed (read):" e))))))
 
+;; todo, same for file channel, move to nio.clj
 (defn write-socket-channel [channel string]
   (let [bytes (.getBytes string)
         buf (java.nio.ByteBuffer/allocateDirect (.length string))]
