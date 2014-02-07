@@ -6,9 +6,14 @@
 ;   the terms of this license.
 ;   You must not remove this notice, or any other, from this software.
 
-(ns nioserver.http)
+(ns nioserver.http
+  (:import (org.apache.commons.codec.binary Base64))
+  (:use nioserver.websocket)
+  (:use nioserver.files))
 
 ;; http code goes here
+
+(def GUID "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
 
 (defn get-date-str []
   (let [calendar (java.util.Calendar/getInstance)
@@ -17,7 +22,7 @@
 
 (defn http-str-reply [content]
   (let [content-length (count content)]
-  (clojure.string/join "\n"
+  (clojure.string/join "\r\n"
                        ["HTTP/1.1 200 OK"
                         (str "Date: " (get-date-str))
                         "Server: Raptor/0.01 (Unix)"
@@ -25,3 +30,28 @@
                         "Content-type: text/html; charset=UTF-8"
                         ""
                         content])))
+
+(defn security-digest [key]
+  (let [sha1 (java.security.MessageDigest/getInstance "SHA1")]
+    (clojure.string/trim (.encodeToString (Base64.)
+      (.digest sha1 (.getBytes (str (clojure.string/trim key) GUID)))))))
+
+(defn handle-websocket-request [request]
+  (println "* Handle websocket handshake:" (:sec-websocket-key request) (:origin request))
+  (clojure.string/join "\r\n"
+                       ["HTTP/1.1 101 Switching Protocols"
+                        "Upgrade: websocket"
+                        "Connection: Upgrade"
+                        (str "Sec-WebSocket-Accept: " (security-digest (:sec-websocket-key request)))
+                        ""
+                        ""]))
+
+(defn http-handle-request [request]
+  (if (= (:upgrade request) "websocket")
+    (handle-websocket-request request)
+    (http-str-reply (serve-static (:path request)))))
+
+(comment
+  ;; using example from http://tools.ietf.org/html/rfc6455
+  (= (security-digest "dGhlIHNhbXBsZSBub25jZQ==") "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=")
+)

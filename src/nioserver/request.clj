@@ -11,6 +11,7 @@
 (defn parse-method [str]
   (keyword str))
 
+; todo: support upgrade
 (defn parse-proto [str]
   (if (= "HTTP/1.1" str)
     :HTTP11

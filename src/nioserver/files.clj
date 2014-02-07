@@ -46,11 +46,12 @@
   (println "* Opening file:" (.toString (.getFileName path)))
   (java.nio.channels.AsynchronousFileChannel/open path (into-array OpenOption [StandardOpenOption/READ])))
 
+; todo: read in chunks, or get filesize?
 (defn read-and-cache [path]
   (println "* Caching file:" (.toString (.getFileName path)))
   (let [file-channel (open-file path)
         filename (.toString (.getFileName path))]
-    (read-file-channel file-channel 1024 #(.put chm filename %1))))
+    (read-file-channel file-channel 2048 #(.put chm filename %1))))
 
 (defn cache-files [root-dir]
   (let [root-path (java.nio.file.Paths/get root-dir (into-array String []))]

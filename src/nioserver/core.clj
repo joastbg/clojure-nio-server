@@ -8,9 +8,17 @@
 
 (ns nioserver.core
   (:use nioserver.http)
-  (:use nioserver.websocket)
-  (:use nioserver.files)
   (:use nioserver.request))
+
+(comment
+(defn test-buffer [string]
+  (let [buf (java.nio.ByteBuffer/allocateDirect string)]
+    (.put buf (.getBytes string))
+    (.rewind buf)))
+)
+
+(defn test-buffer2 [string]
+  (.rewind (java.nio.ByteBuffer/wrap string)))
 
 (defn read-socket-channel [channel size observer]
   (let [buf (java.nio.ByteBuffer/allocateDirect size)]
@@ -27,8 +35,19 @@
           (.close channel)
           (println "! Failed (read):" e))))))
 
+;(defn test-bytes [str]
+;  (byte-array [(byte -127) (byte 0x06) (byte 0x48) (byte 0x48) (byte 0x65) (byte 0x6c) (byte 0x6c) (byte 0x6f)]))
+
+; a hack, need to check if length > 127 etc.
+(defn create-ws-msg [str]
+  (let [len (.length str)
+        init (byte-array [(byte -127) (byte len)])]
+    (byte-array (concat init (.getBytes str)))))
+
+;(type (byte-array (concat test-bytes (.getBytes "johan"))))
+
 ;; todo, same for file channel, move to nio.clj
-(defn write-socket-channel [channel string]
+(defn write-socket-channel [channel string close?]
   (let [bytes (.getBytes string)
         buf (java.nio.ByteBuffer/allocateDirect (.length string))]
     (.put buf bytes)
@@ -36,11 +55,34 @@
     (.write channel buf nil
       (reify java.nio.channels.CompletionHandler
         (completed [this cnt _]
-          ;(println {:event :write :count cnt})
-          (.close channel))
+          ; todo: cleanup
+          (if close? (.close channel))
+          (if (not close?) (.write channel (test-buffer2 (create-ws-msg "hello world!!!")))))
         (failed [this e _]
           (.close channel)
           (println "! Failed (write):" e (.getMessage e)))))))
+
+
+(def ws-connections (agent {}))
+
+(defn do-stuff [a]
+  (Thread/sleep 5000)
+  (println a "sending ws frame...")
+  a)
+
+(comment
+(send ws-connections assoc :johan "apa")
+;@ws-connections
+
+(defn apa [& a]
+  (println a))
+
+
+(send-off ws-connections do-stuff)
+@ws-connections
+)
+
+
 
 (defn handler [listener]
   (reify java.nio.channels.CompletionHandler
@@ -51,7 +93,10 @@
                 (let [request (parse-request str)]
                   (println "** Raw request:" str)
                   (println "* New request:" request)
-                  (write-socket-channel sc (http-str-reply (serve-static (:path request))))))]
+                  (write-socket-channel sc (http-handle-request request) (not (= (:upgrade request) "websocket")))
+                  ))]
+                  ;(send ws-connections assoc :the-conn sc)
+                  ;(send-off ws-connections do-stuff)))]
         (read-socket-channel sc 1024 observer)))))
 
 (defn channel-group []
