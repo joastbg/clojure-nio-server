@@ -7,11 +7,11 @@
 ;   You must not remove this notice, or any other, from this software.
 
 (ns nioserver.files
-  (:import [java.nio.file OpenOption StandardOpenOption])
-  (:import [java.util.concurrent ConcurrentHashMap])
-  (:import [java.nio.channels CompletionHandler AsynchronousFileChannel])
-  (:import [java.nio ByteBuffer])
-  (:import [java.nio.file Paths Files]))
+  (:import [java.nio.file OpenOption StandardOpenOption]
+           [java.util.concurrent ConcurrentHashMap]
+           [java.nio.channels CompletionHandler AsynchronousFileChannel]
+           [java.nio ByteBuffer]
+           [java.nio.file Paths Files]))
 
 ;; serves static files using a cache (using hash map)
 ;; todo: WatchService for changes in dir, then cache
@@ -57,11 +57,16 @@
         filename (.toString (.getFileName path))]
     (read-file-channel file-channel 2048 #(.put chm filename %1))))
 
+; todo: handle when no directory is present
 (defn cache-files [root-dir]
   (let [root-path (Paths/get root-dir (into-array String []))]
+    (let [dir-stream
+          (try (Files/newDirectoryStream root-path)
+               (catch Exception e (println "* Directory not found: " (.getMessage e))))]
+      (if dir-stream
     (doseq
         [entry (Files/newDirectoryStream root-path)]
-      (read-and-cache entry))))
+      (read-and-cache entry))))))
 
 ;; load files and put them in cache
 (cache-files root-dir)

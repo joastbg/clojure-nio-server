@@ -80,9 +80,9 @@
 
 (defn parse-options [args]
   (letfn [(parse-port [args]
-            (if (re-find #"^\d+$" (first args))
+            (if (and args (re-find #"^\d+$" (first args)))
               (read-string (first args))
-              (do (println "* Port has to be a number, using default port.")
+              (do (println "* No valid port provided, using default port.")
               default-port)))]
     {:port (parse-port args)}))
 

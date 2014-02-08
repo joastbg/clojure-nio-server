@@ -38,6 +38,21 @@
       (map #(hash-map (make-keyword (first %1)) (second %1))
         (map #(clojure.string/split %1 #": ") (next lines))))))
 
+;; TODO: use macro to generate assoc for rmap
+(defn do-stuff [a]
+  `(~a (parse-method (~a rmap))))
+
+`(assoc rmap ~@(do-stuff :apa) ~@(do-stuff :proto))
+
+`(:method (parse-moethod (:method rmap)))
+`(assoc apa ~@(map #(list %1 `(parse-method (~%1 apa))) [:method :proto :connection]))
+
+`(1 2 3 (1 2 3) ())
+
+`(+ ~(list 1 2 3))
+
+`(+ ~@(list 1 2 3))
+
 (defn parse-request [req-str]
   (let [lines (clojure.string/split req-str #"\r\n")]
     (let [rmap (into-request-map lines)]

@@ -7,8 +7,8 @@
 ;   You must not remove this notice, or any other, from this software.
 
 (ns nioserver.html
-  (:require [clojure.zip :as zip])
-  (:require [clojure.walk :as walk]))
+  (:require [clojure.zip :as zip]
+            [clojure.walk :as walk]))
 
 ; html generation
 
