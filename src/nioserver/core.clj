@@ -7,16 +7,21 @@
 ;   You must not remove this notice, or any other, from this software.
 
 (ns nioserver.core
-  (:use nioserver.http)
-  (:use nioserver.request))
+  (:use nioserver.http nioserver.request)
+  (:import [java.nio ByteBuffer]
+           [java.nio.channels CompletionHandler
+            AsynchronousChannelGroup
+            AsynchronousServerSocketChannel]
+           [java.util.concurrent TimeUnit Executors]
+           [java.net InetSocketAddress]))
 
 (defn test-buffer [string]
   (.rewind (java.nio.ByteBuffer/wrap string)))
 
 (defn read-socket-channel [channel size observer]
-  (let [buf (java.nio.ByteBuffer/allocateDirect size)]
+  (let [buf (ByteBuffer/allocateDirect size)]
     (.read channel buf nil
-      (reify java.nio.channels.CompletionHandler
+      (reify CompletionHandler
         (completed [this cnt _]
           (let [bytes (byte-array cnt)]
             (.flip buf)
@@ -36,11 +41,11 @@
 ;; todo, same for file channel, move to nio.clj
 (defn write-socket-channel [channel string close?]
   (let [bytes (.getBytes string)
-        buf (java.nio.ByteBuffer/allocateDirect (.length string))]
+        buf (ByteBuffer/allocateDirect (.length string))]
     (.put buf bytes)
     (.rewind buf)
     (.write channel buf nil
-      (reify java.nio.channels.CompletionHandler
+      (reify CompletionHandler
         (completed [this cnt _]
           ; todo: cleanup
           (if close? (.close channel))
@@ -50,7 +55,7 @@
           (println "! Failed (write):" e (.getMessage e)))))))
 
 (defn handler [listener]
-  (reify java.nio.channels.CompletionHandler
+  (reify CompletionHandler
     (completed [this sc _]
       (.accept listener nil this)
       (letfn [(observer [str]
@@ -62,11 +67,11 @@
         (read-socket-channel sc 1024 observer)))))
 
 (defn channel-group []
-  (let [executor (java.util.concurrent.Executors/newSingleThreadExecutor)]
-       (java.nio.channels.AsynchronousChannelGroup/withThreadPool executor)))
+  (let [executor (Executors/newSingleThreadExecutor)]
+       (AsynchronousChannelGroup/withThreadPool executor)))
 
 (defn start-server [group port]
-  (let [assc (java.nio.channels.AsynchronousServerSocketChannel/open group)
+  (let [assc (AsynchronousServerSocketChannel/open group)
         sa (java.net.InetSocketAddress. port)]
     (let [listener (.bind assc sa)]
           (.accept listener nil (handler listener)))))
@@ -85,7 +90,7 @@
   (println "-- NIO-Server 0.01\n")
   (let [group (channel-group)
         time java.lang.Long/MAX_VALUE
-        units java.util.concurrent.TimeUnit/SECONDS
+        units TimeUnit/SECONDS
         options (parse-options args)]
     (println "* Listening on port:" (:port options))
     (start-server group (:port options))

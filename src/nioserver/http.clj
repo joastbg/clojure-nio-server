@@ -7,17 +7,19 @@
 ;   You must not remove this notice, or any other, from this software.
 
 (ns nioserver.http
-  (:import (org.apache.commons.codec.binary Base64))
-  (:use nioserver.websocket)
-  (:use nioserver.files))
+  (:use nioserver.websocket nioserver.files)
+  (:import [org.apache.commons.codec.binary Base64]
+           [java.util Calendar]
+           [java.text SimpleDateFormat]
+           [java.security MessageDigest]))
 
 ;; http code goes here
 
 (def GUID "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
 
 (defn get-date-str []
-  (let [calendar (java.util.Calendar/getInstance)
-        format   (java.text.SimpleDateFormat. "EEE, dd MMM yyyy HH:mm:ss z")]
+  (let [calendar (Calendar/getInstance)
+        format   (SimpleDateFormat. "EEE, dd MMM yyyy HH:mm:ss z")]
     (.format format (.getTime calendar))))
 
 (defn http-str-reply [content]
@@ -32,7 +34,7 @@
                         content])))
 
 (defn security-digest [key]
-  (let [sha1 (java.security.MessageDigest/getInstance "SHA1")]
+  (let [sha1 (MessageDigest/getInstance "SHA1")]
     (clojure.string/trim (.encodeToString (Base64.)
       (.digest sha1 (.getBytes (str (clojure.string/trim key) GUID)))))))
 
