@@ -11,3 +11,9 @@
 ;; reference: http://tools.ietf.org/html/rfc6455
 
 ;; websocket code goes here
+
+; a hack, need to check if length > 127 etc.
+(defn create-ws-msg [str]
+  (let [len (.length str)
+        init (byte-array [(byte -127) (byte len)])]
+    (byte-array (concat init (.getBytes str)))))

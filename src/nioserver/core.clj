@@ -7,7 +7,8 @@
 ;   You must not remove this notice, or any other, from this software.
 
 (ns nioserver.core
-  (:use nioserver.http nioserver.request nioserver.settings)
+  (:use nioserver.http nioserver.request
+        nioserver.settings nioserver.websocket)
   (:import [java.nio ByteBuffer]
            [java.nio.channels CompletionHandler
             AsynchronousChannelGroup
@@ -31,12 +32,6 @@
         (failed [this e _]
           (.close channel)
           (println "! Failed (read):" e))))))
-
-; a hack, need to check if length > 127 etc.
-(defn create-ws-msg [str]
-  (let [len (.length str)
-        init (byte-array [(byte -127) (byte len)])]
-    (byte-array (concat init (.getBytes str)))))
 
 ;; todo, same for file channel, move to nio.clj
 (defn write-socket-channel [channel string close?]
