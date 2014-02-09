@@ -7,6 +7,8 @@
 ;   You must not remove this notice, or any other, from this software.
 
 (ns nioserver.core
+  (:require [clojure.core.async :as async
+             :refer [<! >! timeout chan alt! go pub sub close!]])
   (:use nioserver.http nioserver.request
         nioserver.settings nioserver.websocket)
   (:import [java.nio ByteBuffer]
@@ -41,13 +43,14 @@
     (.rewind buf)
     (.write channel buf nil
       (reify CompletionHandler
-        (completed [this cnt _]
-          ; todo: cleanup
-          (if close? (.close channel))
-          (if (not close?) (.write channel (test-buffer (create-ws-msg "hello world!!!")))))
+        (completed [this cnt _])
         (failed [this e _]
           (.close channel)
           (println "! Failed (write):" e (.getMessage e)))))))
+
+
+
+
 
 (defn handler [listener]
   (reify CompletionHandler
@@ -57,6 +60,7 @@
                 (let [request (parse-request str)]
                   (on-debug (println "** Raw request:" str))
                   (on-debug (println "* New request:" request))
+                  ;; handle websockets using core.async
                   (write-socket-channel sc (http-handle-request request)
                                         (not (= (:upgrade request) "websocket")))))]
         (read-socket-channel sc 1024 observer)))))
