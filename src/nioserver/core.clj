@@ -61,10 +61,10 @@
       (letfn [(observer [str]
                 (let [request (parse-request str)]
                   (on-debug (println "** Raw request:" str))
-                  (on-debug (println "* New request:" request))
+                  (on-debug (println "* New request:" request)
                   (write-socket-channel sc (http-handle-request request)
                                         (not (= (:upgrade request) "websocket")))))]
-        (read-socket-channel sc 1024 observer)))))
+        (read-socket-channel sc 1024 observer))))))
 
 (defn channel-group []
   (let [executor (Executors/newSingleThreadExecutor)]

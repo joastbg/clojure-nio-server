@@ -30,6 +30,7 @@
   (if (.containsKey chm sfile) (String. (.get chm sfile))
       (file-not-found file))))
 
+;; this is the same as socket channel reader...
 (defn read-file-channel [channel size callback]
   (let [buf (ByteBuffer/allocateDirect size)]
     (.read channel buf 0 nil

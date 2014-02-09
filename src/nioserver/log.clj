@@ -16,3 +16,5 @@
 (.add log-queue "sist")
 
 (.poll log-queue)
+(.poll log-queue)
+(.poll log-queue)
