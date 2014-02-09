@@ -7,7 +7,7 @@
 ;   You must not remove this notice, or any other, from this software.
 
 (ns nioserver.core
-  (:use nioserver.http nioserver.request)
+  (:use nioserver.http nioserver.request nioserver.settings)
   (:import [java.nio ByteBuffer]
            [java.nio.channels CompletionHandler
             AsynchronousChannelGroup
@@ -60,8 +60,8 @@
       (.accept listener nil this)
       (letfn [(observer [str]
                 (let [request (parse-request str)]
-                  (println "** Raw request:" str)
-                  (println "* New request:" request)
+                  (on-debug (println "** Raw request:" str))
+                  (on-debug (println "* New request:" request))
                   (write-socket-channel sc (http-handle-request request)
                                         (not (= (:upgrade request) "websocket")))))]
         (read-socket-channel sc 1024 observer)))))
@@ -75,8 +75,6 @@
         sa (java.net.InetSocketAddress. port)]
     (let [listener (.bind assc sa)]
           (.accept listener nil (handler listener)))))
-
-(def default-port 8080)
 
 (defn parse-options [args]
   (letfn [(parse-port [args]

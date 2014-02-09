@@ -7,6 +7,7 @@
 ;   You must not remove this notice, or any other, from this software.
 
 (ns nioserver.files
+  (:use nioserver.settings)
   (:import [java.nio.file OpenOption StandardOpenOption]
            [java.util.concurrent ConcurrentHashMap]
            [java.nio.channels CompletionHandler AsynchronousFileChannel]
@@ -18,8 +19,6 @@
 ;; todo: keep bytes in cache
 ;; some inspiration https://gist.github.com/moonranger/4023683
 
-(def root-dir "/home/gecemmo/Development/clojure-nio-server/resources/")
-
 (defn file-not-found [file] (str "<h1>Sweet file not found</h1>" file))
 
 ;; consider using STM instead, refs
@@ -27,7 +26,7 @@
 
 (defn serve-static [file]
   (let [sfile (if (= \/ (first file)) (subs file 1) file)]
-  (println "wants file:" sfile)
+  (on-debug (println "wants file:" sfile))
   (if (.containsKey chm sfile) (String. (.get chm sfile))
       (file-not-found file))))
 
