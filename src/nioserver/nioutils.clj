@@ -21,41 +21,27 @@
            [java.nio.channels.spi
             AsynchronousChannelProvider]))
 
-; 1: HTTP-CLIENT: (with-pipe! p (with-writer! writer) (with-reader! reader))
-; 2: HTTP-SERVER: (with-pipe! p (with-reader! reader) (with-writer! writer))
-; 3: WS-SERVER:   (with-pipe! p (with-reader! reader) (with-writer! writer))
-
-(let [bytes (.getBytes string)
-        buf (ByteBuffer/allocateDirect (.length string))]
-    (.put buf bytes)
-    (.rewind buf))
-
-(type (ByteBuffer/allocateDirect 1024))
-
 (defn byte-buf [s]
-  (letfn [(new-buf [size] (ByteBuffer/allocateDirect size))]
+  (letfn [(new-buf [size]
+            (ByteBuffer/allocateDirect size))]
     (cond
-     (instance? String s) (-> (new-buf (.length s))
-                              (.put (.getBytes s))
-                              .rewind)
+     (instance? String s)
+                (-> (new-buf (.length s))
+                    (.put (.getBytes s))
+                     .rewind)
+     (instance? (Class/forName "[B") s)
+                (-> (new-buf (count s))
+                    (.put s)
+                     .rewind)
      (instance? Number s) (new-buf s)
      true (new-buf 1024))))
 
-(byte-buf 1024)
-(byte-buf "johan")
-
-(defmacro with-handler [cbody fbody]
+(defmacro with-handlers [cbody fbody]
   `(reify CompletionHandler
      (completed [t# r# a#]
        ((~@cbody) t# r# a#))
      (failed [t# e# a#]
        ((~@fbody) t# e# a#))))
-
-(let [mystr 1]
-  (cond
-   (instance? String mystr) (println "is string")
-   (instance? Number mystr) (println "is number")
-    true (println "Other...")))
 
 (defn read-socket-channel [channel size observer]
   (let [buf (ByteBuffer/allocateDirect size)]
@@ -70,6 +56,7 @@
         (failed [this e _]
           (.close channel)
           (println "! Failed (read):" e))))))
+
 
 (defn write-socket-channel [channel string close?]
   (let [bytes (.getBytes string)
@@ -114,32 +101,50 @@
                 (apply nfn [nc rc]))
               (fn [a b c] (println "err" b c))))))
 
-(apply (fn [a b] (println a b)) [1 2])
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(nio-pipe! (write! "hello") (read!))
+(defn read-buf
+  [^ByteBuffer buf cnt]
+  (when (pos? cnt)
+    (let [bytes (byte-array cnt)]
+      (.flip buf)
+      (.get buf bytes)
+      (.clear buf)
+      bytes)))
 
-(clojure.pprint/pprint
- (macroexpand-1 '(with-handler
-              (fn [a b c] (println "okk" a b c))
-              (println "err"))))
+(defn read-sock-ch
+  "reads a socket channel using core.async channels"
+  [^AsynchronousSocketChannel sch ach]
+  (let [buf (byte-buf)]
+    (.read sch buf nil
+           (with-handlers
+             (fn [t cnt a]
+               (if-let [bytes (read-buf buf cnt)]
+                 (do
+                   (go (>! ach bytes))
+                   (.read sch buf nil t))
+                 (.close ach)))
+             (fn [t e a]
+               (.close ach)
+               (println "! Failed (read):" e)))) ach))
+
+(defn write-sock-ch
+  "writes a byte array to a socket channel"
+  [^AsynchronousSocketChannel sch bytes]
+  (let [buf (byte-buf bytes)]
+    (.write sch buf nil
+            (with-handlers
+              (fn [t cnt a]
+                (println "wrote" cnt))
+              (fn [t e a]
+               (.close sch)
+               (println "! Failed (read):" e))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn channel-group []
   (let [executor (Executors/newSingleThreadExecutor)]
        (AsynchronousChannelGroup/withThreadPool executor)))
-
-(def wch (chan))
-(def rch (chan))
-
-(defn apa [ch]
-  (go (doseq [n [1 2 3 4 5 6 7 8 9 10 11]]
-        (let [[v c] (alts! [ch])]
-          (println "Read from channel:" v)))))
-
-(apa rch)
-(apa wch)
-
-(go (>! wch "GET / HTTP/1.1\r\nHost: www.example.com\r\n\r\n"))
-(go (println "aa" (<! wch)))
 
 (let [client (AsynchronousSocketChannel/open (channel-group))]
   (.connect client (java.net.InetSocketAddress. "www.lth.se" 80)

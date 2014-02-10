@@ -14,6 +14,7 @@
   (:import [java.nio ByteBuffer]
            [java.nio.channels CompletionHandler
             AsynchronousChannelGroup
+            AsynchronousSocketChannel
             AsynchronousServerSocketChannel]
            [java.util.concurrent TimeUnit Executors]
            [java.net InetSocketAddress]))
@@ -35,6 +36,7 @@
           (.close channel)
           (println "! Failed (read):" e))))))
 
+
 ;; todo, same for file channel, move to nio.clj
 (defn write-socket-channel [channel string close?]
   (let [bytes (.getBytes string)
@@ -43,16 +45,12 @@
     (.rewind buf)
     (.write channel buf nil
       (reify CompletionHandler
-        (completed [this cnt _]
-
-          )
+        (completed [this cnt _])
         (failed [this e _]
           (.close channel)
           (println "! Failed (write):" e (.getMessage e)))))))
 
-
 ;; ws: one async read and one async write
-
 
 (defn handler [listener]
   (reify CompletionHandler
@@ -77,7 +75,7 @@
     (let [listener (.bind assc sa)]
           (.accept listener nil (handler listener)))))
 
-(start-server (channel-group) 8888)
+;(start-server (channel-group) 8888)
 
 (defn parse-options [args]
   (letfn [(parse-port [args]

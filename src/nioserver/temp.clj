@@ -1,3 +1,18 @@
+(ns nioserver.nioutils
+  (:require [clojure.core.async :as async :refer [<! >! timeout chan alt! go pub sub]])
+  (:import [java.nio ByteBuffer]
+           [java.nio.file OpenOption StandardOpenOption]
+           [java.nio ByteBuffer]
+           [java.nio.file Paths Files FileSystems]
+           [java.util.concurrent TimeUnit Executors]
+           [java.nio.channels CompletionHandler
+            AsynchronousSocketChannel
+            AsynchronousFileChannel
+            AsynchronousChannelGroup
+            AsynchronousServerSocketChannel]
+           [java.nio.channels.spi
+            AsynchronousChannelProvider]))
+
 (defn read-socket-channel [channel size]
   (let [buf (ByteBuffer/allocateDirect size)]
     (.read channel buf 0 nil
@@ -42,11 +57,12 @@
 (go (>! ch1 "hello"))
 
 (defn apa [ch]
-  (go (while true
+  (go (doseq [n [1 2 3]]
         (let [[v c] (alts! [ch])]
-          (println "Read from channel:" v)))))
+          (println "Read from channel:" (take 2 v))))))
 
 (apa ch1)
+(clojure.core.async/close! ch1)
 
 ;; nio handler
 (defmacro with-handler [cbody fbody]
@@ -269,3 +285,179 @@
           (println "Read" v "from" ch))))
   (go (>! c1 "hi"))
   (go (>! c2 "there")))
+
+
+
+;(simple 8888)
+(comment
+(char (bit-xor 61829 30807))
+; 0111100001010111
+(bit-and -15 0xFF)
+(bit-and -60 0xFF)
+(bit-xor (bit-or (bit-shift-left (bit-and -15 0xFF) 8) (bit-and -60 0xFF)) 30807)
+(bit-xor (bit-or (bit-shift-left (bit-and 11 0xFF) 8) (bit-and 56 0xFF)) 30807)
+
+(char 137)
+(char 147)
+(char 115)
+(char 111)
+
+(def ws-msg [-127 -119 120 87 -15 -60 11 56 -100 -95 88 51 -112 -80 25])
+
+(defn to-bytes [a b m]
+  (let [octet (bit-xor (bit-or (bit-shift-left (bit-and a 0xFF) 8) (bit-and b 0xFF)) 30807)]
+    (list (bit-shift-right octet 8) (bit-and octet 0xFF))))
+
+
+; decode web-socket message
+(let [[f1 f2 f3 f4 f5 f6] ws-msg
+      msg (drop 6 ws-msg)]
+  (println "mask?" (bit-shift-right (bit-and f2 0xFF) 7))
+  (println "len" (bit-and f2 0x7f))
+  ;  (println "mask" (bit-or (bit-shift-left f3 8) f4))
+  (println "mask" f3)
+  ;  (println (map #(bit-xor %1 f3) msg)))
+  (println (apply str (map #(char (bit-xor %1 %2)) msg (cycle [f3 f4 f5 f6])))))
+  ;(println (flatten (map #(to-bytes (first %1) (second %1) 120) (partition 2 msg)))))
+)
+
+
+
+
+
+;;;;;;;;;
+
+;; todo, same for file channel, move to nio.clj
+(defn write-bytes [channel bytes close?]
+  (let [buf (ByteBuffer/allocateDirect (count bytes))]
+    (.put buf bytes)
+    (.rewind buf)
+    (.write channel buf nil
+      (reify CompletionHandler
+        (completed [this cnt _])
+        (failed [this e _]
+          (.close channel)
+          (println "! Failed (write):" e (.getMessage e)))))))
+
+(defn info [s]
+  (println "* INFO: " s))
+
+(defn listen-ch
+  "return a channel which listens on port, values in the channel are scs of
+   AsynchronousSocketChannel"
+  ([port]
+     (listen-ch port (chan)))
+  ([port ch]
+     (let [^AsynchronousServerSocketChannel listener
+           (-> (AsynchronousServerSocketChannel/open)
+               (.bind (InetSocketAddress. port)))
+           handler (reify CompletionHandler
+                     (completed [this sc _]
+                       (info {:event :connected :address (.getRemoteAddress sc)})
+                       (go (>! ch sc))
+                       (.accept listener nil this)))]
+       (.accept listener nil handler)
+       ch)))
+
+(defn read-buf!
+  [^ByteBuffer buf cnt]
+  (when (pos? cnt)
+    (let [bytes (byte-array cnt)
+          _ (.flip buf)
+          _ (.get buf bytes)
+          _ (.clear buf)]
+      bytes)))
+
+(defn read-ch
+  "returns a channel which read from asc, values in the channel are
+   byte-array"
+  ([asc]
+     (read-ch asc (ByteBuffer/allocateDirect 1024) (chan)))
+  ([^AsynchronousSocketChannel asc buf ch]
+     (.read asc buf nil
+            (reify CompletionHandler
+              (completed [this cnt _]
+                (on-debug {:event :read :count cnt})
+                (if-let [bytes (read-buf! buf cnt)]
+                  (do
+                    (go (>! ch bytes))
+                    ;(.read asc buf nil this)
+                    )
+                  (do
+                    (info {:event :disconnected})
+                    (.close asc))))))
+     ch))
+
+(defn read-sock-ch
+  "reads a socket channel using core.async channels"
+  [^AsynchronousSocketChannel sch buf ach]
+  (let [buf
+  (.read sch buf nul
+
+
+
+(defn read-ch-loop
+  "returns a channel which read from asc, values in the channel are
+   byte-array"
+  ([asc]
+     (read-ch-loop asc (ByteBuffer/allocateDirect 1024) (chan)))
+  ([^AsynchronousSocketChannel asc buf ch]
+     (.read asc buf nil
+            (reify CompletionHandler
+              (completed [this cnt _]
+                (on-debug (println {:event :read :count cnt}))
+                (if-let [bytes (read-buf! buf cnt)]
+                  (do
+                    (go (>! ch bytes))
+                    (.read asc buf nil this))
+                  (do
+                    (info {:event :disconnected})
+                    (.close asc))))))
+     ch))
+
+;-127,len
+
+
+(def pch (chan))
+(def sch (chan))
+
+(defn topic-fn [val]
+  (println "topic-fn:" val)
+  "hello")
+
+(def p (pub pch topic-fn))
+
+(sub p "hello" sch)
+;(go (>! pch "hi world"))
+;(go (println (<! sch)))
+
+(defn decode-ws [ws-msg]
+  (let [[f1 f2 f3 f4 f5 f6] ws-msg
+      msg (drop 6 ws-msg)]
+  (apply str (map #(char (bit-xor %1 %2)) msg (cycle [f3 f4 f5 f6])))))
+
+(defn simple [port]
+  (let [lc (listen-ch port)]
+    (clojure.core.async/go-loop [asc (<! lc)]
+      (when asc
+        (let [rc (read-ch asc)]
+          (clojure.core.async/go-loop [bs (<! rc)]
+            (when bs
+              (println "read: " (String. bs))
+              (let [request (parse-request (String. bs))
+                    rc2 (read-ch-loop asc)]
+              (write-socket-channel asc (http-handle-request request) false)
+              (if (= (:upgrade request) "websocket")
+                (clojure.core.async/go-loop [subm (<! sch)]
+                                            (when subm
+                                              (println "sub msg: " subm)
+                                              (write-bytes asc (create-ns subm) false)
+                                              (recur (<! sch))))
+                  (clojure.core.async/go-loop [wsm (<! rc2)]
+                                              (when wsm
+                                                (println "ws-m: " (decode-ws wsm))
+                                                (recur (<! rc2)))))
+              (recur nil))))))
+      (recur (<! lc)))))
+
+(simple 8888)
