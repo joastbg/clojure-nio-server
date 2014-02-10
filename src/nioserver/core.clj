@@ -43,13 +43,15 @@
     (.rewind buf)
     (.write channel buf nil
       (reify CompletionHandler
-        (completed [this cnt _])
+        (completed [this cnt _]
+
+          )
         (failed [this e _]
           (.close channel)
           (println "! Failed (write):" e (.getMessage e)))))))
 
 
-
+;; ws: one async read and one async write
 
 
 (defn handler [listener]
@@ -74,6 +76,8 @@
         sa (java.net.InetSocketAddress. port)]
     (let [listener (.bind assc sa)]
           (.accept listener nil (handler listener)))))
+
+(start-server (channel-group) 8888)
 
 (defn parse-options [args]
   (letfn [(parse-port [args]
