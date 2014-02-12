@@ -82,7 +82,7 @@
 (defn read1 [nc rc nfn]
   (let [buf (byte-buf 1024)]
     (.read nc buf nil
-           (with-handler
+           (with-handlers
              (fn [a b c]
                (if (> b 0)
                  (do
@@ -95,7 +95,7 @@
 (defn write1 [nc rc str nfn]
   (let [buf (byte-buf str)]
     (.write nc buf nil
-            (with-handler
+            (with-handlers
               (fn [a b c]
                 (println "wrote" b)
                 (apply nfn [nc rc]))
@@ -145,6 +145,14 @@
 (defn channel-group []
   (let [executor (Executors/newSingleThreadExecutor)]
        (AsynchronousChannelGroup/withThreadPool executor)))
+
+(def rch (chan))
+(defn apa [ch]
+  (go (doseq [n [1 2 3]]
+        (let [[v c] (alts! [ch])]
+          (println "Read from channel:" v)))))
+
+(apa rch)
 
 (let [client (AsynchronousSocketChannel/open (channel-group))]
   (.connect client (java.net.InetSocketAddress. "www.lth.se" 80)

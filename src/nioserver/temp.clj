@@ -72,6 +72,14 @@
      (failed [_ e _]
        ~fbody)))
 
+;; nio handler
+(defmacro with-handler [cbody fbody]
+  `(reify CompletionHandler
+     (completed [_ cnt _]
+       ~cbody)
+     (failed [_ e _]
+       ~fbody)))
+
 (clojure.pprint/pprint
  (macroexpand-1 '(with-handler (println cnt) (println "Failed"))))
 
@@ -230,6 +238,8 @@
             nil (with-handler
                     (do (println "Connected...")
                     (write-socket-channel client "GET / HTTP/1.1\r\nHost: www.example.com\r\n\r\n" false)))))
+
+
 
 ;(nio-pipe! (nio-write "GET / HTTP/1.1....") (nio-read))
 ;(>>! in out nio-write nio-read)
